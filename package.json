@@ -2,16 +2,15 @@
   "name": "insweb-file-server",
   "version": "0.1.0",
   "private": true,
- "scripts": {
+  "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "multer": "^1.4.5-lts.1"
-
-
+    "helmet": "^8.0.0",
+    "multer": "^1.4.5-lts.1",
+    "winston": "^3.17.0"
   }
-
 }
