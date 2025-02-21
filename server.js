@@ -49,7 +49,7 @@ const logger = winston.createLogger({
 // Ensure 'uploads' directory exists
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR);
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 // Function to generate a unique file ID
@@ -79,22 +79,17 @@ const upload = multer({
   storage,
   limits: { fileSize: 40 * 1024 * 1024 }, // 40MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-      "application/pdf",
-    ];
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "application/pdf"];
+
     if (!allowedTypes.includes(file.mimetype)) {
-      return cb(
-        new Error("Invalid file type. Only PNG, JPEG, JPG, and PDF allowed.")
-      );
+      return cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE", file));
     }
+
     cb(null, true);
   },
 });
 
-// File Upload Route
+// File Upload Route with Improved Error Handling
 app.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) {
     logger.warn("No file uploaded");
@@ -103,9 +98,17 @@ app.post("/upload", upload.single("file"), (req, res) => {
       .json({ success: false, message: "No file found in the request body" });
   }
   logger.info(`File uploaded: ${req.file.filename}`);
+  console.log(`File uploaded: ${req.file.filename}`)
   res
     .status(200)
     .json({ success: true, fileUrl: `/uploads/${req.file.filename}` });
+}, (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    logger.error(`Multer Error: ${error.message}`);
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  logger.error(`Unknown Error: ${error.message}`);
+  res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
 // File Deletion Route
