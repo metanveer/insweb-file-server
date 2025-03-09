@@ -79,10 +79,19 @@ const upload = multer({
   storage,
   limits: { fileSize: 40 * 1024 * 1024 }, // 40MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "application/pdf"];
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+      "application/msword", // .doc
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      "application/vnd.ms-excel", // .xls
+    ];
 
     if (!allowedTypes.includes(file.mimetype)) {
-      return cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE", file));
+      return cb(new Error("Unsupported file type"), false);
     }
 
     cb(null, true);
@@ -90,26 +99,33 @@ const upload = multer({
 });
 
 // File Upload Route with Improved Error Handling
-app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) {
-    logger.warn("No file uploaded");
-    return res
-      .status(400)
-      .json({ success: false, message: "No file found in the request body" });
+app.post(
+  "/upload",
+  upload.single("file"),
+  (req, res) => {
+    if (!req.file) {
+      logger.warn("No file uploaded");
+      return res
+        .status(400)
+        .json({ success: false, message: "No file found in the request body" });
+    }
+    logger.info(`File uploaded: ${req.file.filename}`);
+    console.log(`File uploaded: ${req.file.filename}`);
+    res
+      .status(200)
+      .json({ success: true, fileUrl: `/uploads/${req.file.filename}` });
+  },
+  (error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+      logger.error(`Multer Error: ${error.message}`);
+      return res.status(400).json({ success: false, message: error.message });
+    } else if (error) {
+      logger.error(`Unknown Error: ${error.message}`);
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next();
   }
-  logger.info(`File uploaded: ${req.file.filename}`);
-  console.log(`File uploaded: ${req.file.filename}`)
-  res
-    .status(200)
-    .json({ success: true, fileUrl: `/uploads/${req.file.filename}` });
-}, (error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    logger.error(`Multer Error: ${error.message}`);
-    return res.status(400).json({ success: false, message: error.message });
-  }
-  logger.error(`Unknown Error: ${error.message}`);
-  res.status(500).json({ success: false, message: "Internal Server Error" });
-});
+);
 
 // File Deletion Route
 app.delete("/delete", (req, res) => {
